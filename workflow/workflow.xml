@@ -1,0 +1,42 @@
+<workflow-app name="spotify-skz-analytics-pipeline" xmlns="uri:oozie:workflow:0.5">
+    <start to="pig-cleaning-node"/>
+
+    <action name="pig-cleaning-node">
+        <pig>
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <script>/user/maria_dev/spotify/workflow/scripts/clean_streaming.pig</script>
+        </pig>
+        <ok to="hive-warehouse-node"/>
+        <error to="kill-pipeline-node"/>
+    </action>
+
+    <action name="hive-warehouse-node">
+        <hive xmlns="uri:oozie:hive-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <script>/user/maria_dev/spotify/workflow/scripts/build_warehouse.sql</script>
+        </hive>
+        <ok to="spark-audit-and-plot-node"/>
+        <error to="kill-pipeline-node"/>
+    </action>
+
+    <action name="spark-audit-and-plot-node">
+        <spark xmlns="uri:oozie:spark-action:0.1">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <master>yarn</master>
+            <mode>cluster</mode>
+            <name>SparkDataAuditAndPythonPlotting</name>
+            <jar>/user/maria_dev/spotify/workflow/scripts/audit_and_visualize.py</jar>
+        </spark>
+        <ok to="end"/>
+        <error to="kill-pipeline-node"/>
+    </action>
+
+    <kill name="kill-pipeline-node">
+        <message>Big Data Pipeline terminated unexpectedly. Core Error logs written inside yarn history server.</message>
+    </kill>
+
+    <end name="end"/>
+</workflow-app>
